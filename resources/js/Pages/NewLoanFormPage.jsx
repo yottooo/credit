@@ -7,7 +7,8 @@ export default function NewLoanFormPage() {
         amount: '',
         term: '3',
     });
-    const [notification, setNotification] = useState(null); // State for notification
+    const [notification, setNotification] = useState(null);
+    const [notificationType, setNotificationType] = useState('');
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -15,6 +16,19 @@ export default function NewLoanFormPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Check if the amount is not null or empty
+        if (!formData.amount) {
+            setNotification('Amount must not be null or empty.');
+            setNotificationType('error');
+            return; // Prevent the form from being submitted
+        }
+
+        if (Number(formData.amount) <= 0) {
+            setNotification('Amount must be a positive number.');
+            setNotificationType('error');
+            return; // Prevent the form from being submitted
+        }
 
         try {
             const response = await fetch('/api/saveCredit', {
@@ -25,27 +39,34 @@ export default function NewLoanFormPage() {
                 body: JSON.stringify(formData),
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to submit form');
-            }
-
             const result = await response.json();
-            console.log('Form submitted successfully:', result);
 
-            setNotification('Loan Created Successfully');
+            if (response.ok) {
+                // Successful loan creation
+                setNotification('Loan Created Successfully');
+                setNotificationType('success');
 
-            setFormData({
-                borrowerName: '',
-                amount: '',
-                term: '3',
-            });
+                // Reset the form
+                setFormData({
+                    borrowerName: '',
+                    amount: '',
+                    term: '3',
+                });
 
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000); // 2 seconds delay for the notification to be visible
+                // Refresh the page after a delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                // Credit limit exceeded error
+                setNotification(result.message || 'Failed to create loan');
+                setNotificationType('error');
+            }
 
         } catch (error) {
             console.error('Error submitting form:', error);
+            setNotification('An error occurred while submitting the loan.');
+            setNotificationType('error');
         }
     };
 
@@ -53,7 +74,13 @@ export default function NewLoanFormPage() {
         <div>
             <Header />
             {notification && (
-                <div className="notification" style={{ color: 'green', marginBottom: '10px' }}>
+                <div
+                    className={`notification ${notificationType}`}
+                    style={{
+                        color: notificationType === 'success' ? 'green' : 'red',
+                        marginBottom: '10px'
+                    }}
+                >
                     {notification}
                 </div>
             )}

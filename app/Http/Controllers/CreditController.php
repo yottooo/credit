@@ -18,12 +18,21 @@ class CreditController extends Controller
 
         $validated = $request->validate([
             'borrowerName' => 'required|string',
-            'amount' => 'required|numeric',
+            'amount' => 'required|numeric|min:1',
             'term' => 'required|integer|min:3|max:120',
+        ], [
+            'borrowerName.required' => 'The borrower name is required.',
+            'amount.required' => 'The amount is required.',
+            'amount.numeric' => 'The amount must be a number.',
+            'amount.min' => 'The amount must be at least 1.',
+            'term.required' => 'The term is required.',
+            'term.integer' => 'The term must be an integer.',
+            'term.min' => 'The term must be at least 3 months.',
+            'term.max' => 'The term may not be greater than 120 months.',
         ]);
-// Check if the debtor name exists in the database
+
         $debtor = Debtor::where('name', $validated['borrowerName'])->first();
-//    dd($debtor->id);
+
         if ($debtor) {
             // Calculate the total sum of all credits for this debtor
             $totalCredits = Credit::where('debtor_id', $debtor->id)->sum('amount');
@@ -32,16 +41,21 @@ class CreditController extends Controller
             if ($totalCredits + $validated['amount'] > Debtor::CREDIT_LIMIT) {
                 return response()->json([
                     'message' => 'Total credit amount exceeds the allowed limit.',
-                ], 400); // 400 Bad Request
+                ], 400);
             }
 
             // Debtor with this name exists, create a credit for this debtor
-            Credit::create([
+            $credit =  Credit::create([
                 'debtor_id' => $debtor->id,  // Associate with the debtor's ID
                 'amount' => $validated['amount'],
                 'amountLeft' => $validated['amount'], // Set initial amountLeft to the loan amount
                 'term' => $validated['term']
             ]);
+
+            return response()->json([
+                'message' => 'Credit created successfully',
+            ]);
+
         } else {
             $debtor = Debtor::create([
                 'name' => $validated['borrowerName'],
@@ -56,8 +70,6 @@ class CreditController extends Controller
 
             return response()->json([
                 'message' => 'New debtor and credit created successfully',
-                'debtor' => $debtor,
-                'credit' => $credit
             ]);
         }
 
@@ -80,7 +92,6 @@ class CreditController extends Controller
             ];
         });
 
-        // Return the credits as a JSON response
         return response()->json($creditsArray);
     }
     public function calculateMonthlyPayment($amount, $term)
@@ -108,7 +119,6 @@ class CreditController extends Controller
     }
 
     public function makePayment(Request $request) {
-//        dd('here');
         // Validate the incoming request data
         $validated = $request->validate([
             'credit_id' => 'required|exists:credits,id',

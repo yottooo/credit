@@ -31,6 +31,12 @@ class CreditController extends Controller
             'term.max' => 'The term may not be greater than 120 months.',
         ]);
 
+        if ($validated['amount'] >= Debtor::CREDIT_LIMIT) {
+            return response()->json([
+                'message' => 'Credit limit exceeds the allowed limit.',
+            ], 400); // Bad Request
+        }
+
         $debtor = Debtor::where('name', $validated['borrowerName'])->first();
 
         if ($debtor) {
@@ -72,7 +78,6 @@ class CreditController extends Controller
                 'message' => 'New debtor and credit created successfully',
             ]);
         }
-
     }
 
     //Return all credits from the DB
